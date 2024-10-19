@@ -1,101 +1,168 @@
-import Image from "next/image";
+"use client"; // Marking this component as client-side
+
+import { useState, useEffect } from "react";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [entered, setEntered] = useState(false); // Track if user clicked to enter
+  const [showContent, setShowContent] = useState(false); // Control content reveal
+  const [videoReady, setVideoReady] = useState(false); // Track if video is cached
+  const [audio, setAudio] = useState(null); // Initialize audio state as null
+  const [volumeControlVisible, setVolumeControlVisible] = useState(false); // Volume control visibility
+  const [volume, setVolume] = useState(1); // Audio volume (0.0 to 1.0)
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    // Create Audio object with video file once the component mounts
+    const audioObject = new Audio("/video.mp4");
+    audioObject.volume = volume; // Set initial volume
+    setAudio(audioObject);
+
+    // Ensure video is loaded
+    const videoElement = document.getElementById("background-video");
+    if (videoElement) {
+      videoElement.oncanplaythrough = handleVideoLoad;
+    }
+
+    // Clean up audio object when component unmounts
+    return () => {
+      if (audioObject) {
+        audioObject.pause();
+        audioObject.src = ""; // Clear the audio source to free up memory
+      }
+    };
+  }, []); // Run only once when the component mounts
+
+  // Function to handle the click event, play audio/video, and reveal content
+  const handleEnterClick = async () => {
+    setEntered(true);
+    
+    // Request audio playback permissions and play the audio from the video
+    if (audio) {
+      try {
+        await audio.play();
+        console.log("Audio playback permitted");
+      } catch (error) {
+        console.error("Audio playback permission denied", error);
+      }
+    }
+
+    // Delay the content reveal by 5 seconds
+    setTimeout(() => setShowContent(true), 5000);
+
+    // Play background video
+    const videoElement = document.getElementById("background-video");
+    if (videoElement) {
+      videoElement.play();
+    }
+  };
+
+  // Function to handle when video is ready (loaded)
+  const handleVideoLoad = () => {
+    setVideoReady(true);
+  };
+
+  // Toggle volume control visibility with Ctrl + V
+  const handleKeyDown = (event) => {
+    if (event.ctrlKey && event.key === 'v') {
+      setVolumeControlVisible((prev) => !prev); // Toggle visibility
+    }
+  };
+
+  // Update volume
+  const handleVolumeChange = (event) => {
+    const newVolume = event.target.value;
+    setVolume(newVolume);
+    if (audio) {
+      audio.volume = newVolume; // Update audio volume
+    }
+  };
+
+  // Add event listener for keydown
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center relative">
+      {/* Initial click to enter screen */}
+      {!entered && (
+        <div
+          className="absolute inset-0 flex items-center justify-center bg-gray-900 text-white text-2xl cursor-pointer"
+          onClick={handleEnterClick}
+        >
+          <div className="text-center">
+            <p className="animate-pulse">
+              {videoReady ? "Click to Enter" : "Loading video..."}
+            </p>
+            <p className="text-gray-400 mt-2">Click here to enter</p>
+            <p className="text-gray-400 mt-2">Use Ctrl + V to control volume</p> {/* Added description */}
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      )}
+
+      {/* After clicking, the content will reveal after 5 seconds */}
+      {entered && (
+        <div
+          className={`transition-opacity duration-1000 ${
+            showContent ? "opacity-100" : "opacity-0"
+          } flex flex-col items-center justify-center text-center`}
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+          {/* Background Image or Color */}
+          <div className="absolute inset-0 bg-gray-900"></div>
+
+          {/* Portfolio Box with Border and 70% opacity */}
+          <div
+            className="z-10 p-8 rounded-lg shadow-lg max-w-md w-full"
+            style={{ backgroundColor: "rgba(31, 41, 55, 0.7)" }} // Set background color with 70% opacity
+          >
+            <h1 className="text-5xl font-bold text-white mb-4">Ichigo</h1>
+            <p className="text-xl text-gray-400 mb-6">bla bla hshfsdkfsdkf sd sfsd sd fsdfsdfjsdk fsd sdf sfjsdk fjs </p>
+
+            {/* Social Media Icons */}
+            <div className="flex space-x-4 justify-center">
+              <a href="https://discord.com" target="_blank" rel="noopener noreferrer">
+                <img src="/icons/discord.svg" alt="Discord" className="w-8 h-8" />
+              </a>
+              <a href="https://spotify.com" target="_blank" rel="noopener noreferrer">
+                <img src="/icons/spotify.svg" alt="Spotify" className="w-8 h-8" />
+              </a>
+              <a href="https://telegram.org" target="_blank" rel="noopener noreferrer">
+                <img src="/icons/telegram.svg" alt="Telegram" className="w-8 h-8" />
+              </a>
+            </div>
+          </div>
+
+          {/* Local video (background) with blur effect */}
+          <video
+            id="background-video"
+            className="absolute inset-0 w-full h-full object-cover blur-lg"  // Apply blur here
+            src="/video.mp4"
+            preload="auto"
+            loop
+            muted
+            playsInline
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+          {/* Volume Control */}
+          {volumeControlVisible && (
+            <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-20">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={volume}
+                onChange={handleVolumeChange}
+                className="w-64 accent-blue-500"
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
